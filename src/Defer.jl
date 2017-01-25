@@ -13,6 +13,7 @@ function pop_scope!(i::Int, e::Nullable{Any}=Nullable{Any}())
   if i == length(scopes)
     pop_scope!(e)
   else
+    @assert i > 0
     warn("Popping scope $(length(scopes)), expected $i")
     if length(scopes) < i
       if !isnull(e)
