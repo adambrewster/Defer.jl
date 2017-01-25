@@ -23,7 +23,7 @@ end
 function pop_scope!(e::Nullable{Any}=Nullable{Any}())
   exceptions = isnull(e) ? Any[] : Any[get(e)]
   this_scope = pop!(scopes)
-  for fin in this_scope
+  for fin in reverse(this_scope)
     try
       fin()
     catch e
