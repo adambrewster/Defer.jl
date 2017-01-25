@@ -9,13 +9,20 @@ function push_scope!()
   length(scopes)
 end
 
-function pop_scope!(i::Int)
+function pop_scope!(i::Int, e::Nullable{Any}=Nullable{Any}())
   if i == length(scopes)
-    pop_scope!()
+    pop_scope!(e)
   else
     warn("Popping scope $(length(scopes)), expected $i")
-    while length(scopes) >= i
-      pop_scope!()
+    if length(scopes) < i
+      if !isnull(e)
+        rethrow(get(e))
+      end
+    else
+      while length(scopes) > i
+        pop_scope!()
+      end
+      pop_scope!(e)
     end
   end
 end
@@ -23,6 +30,9 @@ end
 function pop_scope!(e::Nullable{Any}=Nullable{Any}())
   exceptions = isnull(e) ? Any[] : Any[get(e)]
   this_scope = pop!(scopes)
+  if isempty(scopes)
+    push!(scopes, Any[])
+  end
   for fin in reverse(this_scope)
     try
       fin()
@@ -42,27 +52,27 @@ function pop_scope!(e::Nullable{Any}=Nullable{Any}())
 end
 
 function scope(f)
-  push_scope!()
+  sc = push_scope!()
   ex = Nullable{Any}()
   try
     f()
   catch e
     ex = Nullable{Any}(e)
   finally
-    pop_scope!(ex)
+    pop_scope!(sc, ex)
   end
 end
 
 macro scope(code)
   quote
-    push_scope!()
+    sc = push_scope!()
     ex = Nullable{Any}()
     try
       $(esc(code))
     catch e
       ex = Nullable{Any}(e)
     finally
-      pop_scope!(ex)
+      pop_scope!(sc, ex)
     end
   end
 end
