@@ -77,9 +77,8 @@ macro scope(code)
   end
 end
 
-function defer(fin)
-  if isempty(scopes) error("defer can only be used within a scope") end
-  push!(last(scopes), fin)
+function defer(fin, sc::Integer=0)
+  push!(scopes[sc > 0 ? sc : length(scopes) + sc], fin)
   nothing
 end
 
