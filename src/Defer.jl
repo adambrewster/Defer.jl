@@ -7,15 +7,32 @@ const current_scope = Ref{Nullable{Array}}(Nullable{Array}())
 function scope(f)
   old_scope = current_scope[]
   current_scope[] = Nullable([])
+  ex = Nullable{CompositeException}()
   try
     f()
+  catch e
+    ex = Nullable(CompositeException([e]))
   finally
     this_scope = get(current_scope[])
     current_scope[] = old_scope
     for fin in this_scope
-      fin()
+      try
+        fin()
+      catch e
+        if isnull(ex)
+          ex = Nullable(CompositeException())
+        end
+        push!(get(ex).exceptions, e)
+      end
     end
     empty!(this_scope)
+    if !isnull(ex)
+      if length(get(ex)) == 1
+        rethrow(get(ex).exceptions[1])
+      else
+        throw(get(ex))
+      end
+    end
   end
 end
 
