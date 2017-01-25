@@ -1,8 +1,8 @@
 module Defer
 
-export push_scope!, pop_scope!, scope, defer, @defer, @!
+export push_scope!, pop_scope!, scope, @scope, defer, @defer, @!
 
-const scopes = Any[]
+const scopes = Any[Any[]]
 
 function push_scope!()
   push!(scopes, Any[])
@@ -50,6 +50,20 @@ function scope(f)
     ex = Nullable{Any}(e)
   finally
     pop_scope!(ex)
+  end
+end
+
+macro scope(code)
+  quote
+    push_scope!()
+    ex = Nullable{Any}()
+    try
+      $(esc(code))
+    catch e
+      ex = Nullable{Any}(e)
+    finally
+      pop_scope!(ex)
+    end
   end
 end
 
