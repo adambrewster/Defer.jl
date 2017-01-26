@@ -29,7 +29,7 @@ Advantages of this approach:
  - Package authors just need to extend `Base.close` (or some other function we all agree on).
  - There is no need for everybody to implement the
  `open(f::Function, x...) = fd = open(x...); try f(fd) finally close(fd) end`
- pattern for every kind of resource that might meed cleanup.
+ pattern for every kind of resource that might need cleanup.
  - Packages users just have to remember to call close or use `@!`.
  - You can defer any kind of code you want, not just closing.
  - The user controls when resources are cleaned up.
@@ -85,9 +85,9 @@ function f()
 end
 @scope f()
 ```
-is eqiivalent to the above.
+is equivalent to the above.
 
-Exceptions from the scope or its defrered actions propagate to the caller.  If there are multiple exceptions, they're wrapped in a
+Exceptions from the scope or its deferred actions propagate to the caller.  If there are multiple exceptions, they're wrapped in a
 `CompositeException`.
 ```
 try
