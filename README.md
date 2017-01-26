@@ -44,3 +44,63 @@ Disadvantages:
  `scope() do; @! open("/tmp/junk.txt") end`.
  - It's somewhat unique, and people may find it unfamiliar.
  - Right now it's just yet another way to solve the problem, and it's inconsistent and somewhat incompatible with all of the the others.
+
+## Usage
+The most basic usage is to create a scope and execute code within it.  Within a scope you can schedule code for execution when the scope terminates.
+```
+scope() do
+    @defer println("world")
+    println("hello")
+end
+```
+prints
+```
+hello
+world
+```
+
+`@!` is a shortcut for deferring a call to close.
+```
+type A
+    a::String
+end
+Base.close(a::A) = println("Closing $a")
+use(a::A) = println("Using $a")
+scope() do
+    a = @! A("a")
+    use(a)
+end
+```
+prints
+```
+Using A("a")
+Closing A("a")
+```
+
+Sometimes `scope() do ... end` is inconvenient, so there's also a `@scope` macro.
+```
+function f()
+    a = @! A("a")
+    use(a)
+end
+@scope f()
+```
+is eqiivalent to the above.
+
+Exceptions from the scope or its defrered actions propagate to the caller.  If there are multiple exceptions, they're wrapped in a
+`CompositeException`.
+```
+try
+    scope() do
+        @defer throw("Defered exception")
+        throw("Exception")
+    end
+catch e
+    @show e
+    nothing
+end
+```
+prints
+```
+e = CompositeException(Any["Exception","Defered exception"])
+```
