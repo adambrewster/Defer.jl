@@ -1,6 +1,6 @@
 module Defer
 
-export push_scope!, pop_scope!, scope, @scope, defer, @defer, @!
+export push_scope!, pop_scope!, scope, scope_nogc, @scope, defer, @defer, @!
 
 const scopes = Any[Any[]]
 
@@ -61,6 +61,22 @@ function scope(f)
     ex = Nullable{Any}(e)
   finally
     pop_scope!(sc, ex)
+  end
+end
+
+function scope_nogc(f)
+  gc_enabled = gc_enable(false)
+  sc = push_scope!()
+  ex = Nullable{Any}()
+  try
+    f()
+  catch e
+    ex = Nullable{Any}(e)
+  finally
+    pop_scope!(sc, ex)
+    if gc_enabled
+      gc_enable(true)
+    end
   end
 end
 

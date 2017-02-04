@@ -77,3 +77,8 @@ verify_closed()
 
 @scope @! Closable("9")
 verify_closed()
+
+scope_nogc() do
+  @! Closable("10")
+end
+verify_closed()
