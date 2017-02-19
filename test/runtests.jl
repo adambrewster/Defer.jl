@@ -82,3 +82,14 @@ scope_nogc() do
   @! Closable("10")
 end
 verify_closed()
+
+@scope let a = Closable("11")
+  @! Closable("12")
+end
+verify_closed()
+
+@scope f1(s::String) = @! Closable(s)
+@scope function f2(t::String) @! Closable(t) end
+f1("13")
+f2("14")
+verify_closed()

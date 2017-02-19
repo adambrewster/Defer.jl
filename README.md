@@ -87,6 +87,21 @@ end
 ```
 is equivalent to the above.
 
+When applied to a method definition, `@scope` wraps the body in a scope.
+```julia
+@scope g() use(@! A("a"))
+g()
+```
+is also equivalent.
+
+`@scope` can also be applied to a `let` statement to wrap the statement in a scope
+and automatically schedule all of the `let`ed variables to be closed.
+```julia
+@scope let f = open("/dev/null", "w")
+  println(f, "Hello, nobody!")
+end
+```
+
 Exceptions from the scope or its deferred actions propagate to the caller.  If there are multiple exceptions, they're wrapped in a
 `CompositeException`.
 ```
