@@ -48,7 +48,9 @@ function pop_scope!(e::Nullable{Any}=Nullable{Any}())
     if length(exceptions) == 1
       rethrow(exceptions[1])
     else
-      throw(CompositeException(exceptions))
+      e = CompositeException()
+      append!(e.exceptions, exceptions)
+      throw(e)
     end
   end
   nothing
