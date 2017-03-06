@@ -1,4 +1,4 @@
-# Copyright 2017 Massachusetts Institute of Technology.
+# Copyright 2017 Massachusetts Institute of Technology. See LICENSE file for details.
 
 module Defer
 
