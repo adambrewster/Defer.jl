@@ -1,54 +1,13 @@
 # Defer.jl
-I went looking for the community's current position on finalizers and resource cleanup, and I found a couple of github issues where the
-topic has been discussed. I've also looked in to how a few packages that I use handle the problem. The state seems to be that there are
-many options each has its own drawbacks, and different packages handle the problem differently. Some of the choices that I've seen:
+Defer.jl provides simplified resource cleanup in julia.  When julia programs interface with external resources (often 
+wrapping external libraries), they must often arrange for those resources to be freed, closed, cleaned up, or otherwise 
+disposed of after use.  This package provides a golang inspired `@defer` macro to make it easier for users to free resources
+at the correct time.
 
- - Enforce `do` syntax
- - Provide an exported function and expect the user to call it
- - Add a new method to a function imported from Base and expect users to call it
- - Add finalizers to objects in their constructors
- - Add atexit hooks
- - Reference counting
-
-A future language feature, `with`, might provide for finalizers to be called sooner. Alternately `defer` may also be added to allow the user
-to schedule finalizers at resource construction time. I don't see PRs for either of these solutions.
-
-It's not only inconvenient that there's no simple way to mark resources that need to be freed, but different systems in different packages
-make it difficult to make sure that all of the resources from all of the packages are freed in the correct order and in a timely matter.
-
-I wrote a quick package to demonstrate something similar to golang's defer. Sample source is in this repository.
-Without any help from the compiler, you have to declare each "scope" yourself with `scope() do ... end`. If you don't want to wrap your code
-in a do block, then you can `push_scope!()` at the top and `pop_scope!()` when it's finished. Within a scope, you can register a thunk to be
-executed when the scope terminates with `defer(thunk)` or `@defer` expression. There's also a `@!` macro that's meant to work like the
-proposed `f(...)!` syntax (i.e. it closes it's argument when the enclosing scope terminates).
-
-Advantages of this approach:
-
- - The do syntax works, but is optional.
- - Resources are always cleaned up in the reverse order of construction.
- - Package authors just need to extend `Base.close` (or some other function we all agree on).
- - There is no need for everybody to implement the
- `open(f::Function, x...) = fd = open(x...); try f(fd) finally close(fd) end`
- pattern for every kind of resource that might need cleanup.
- - Packages users just have to remember to call close or use `@!`.
- - You can defer any kind of code you want, not just closing.
- - The user controls when resources are cleaned up.
- - It's not dependent on the garbage collector.
- - If the language will ever support golang style defer, then packages using this method will need minor, if any, changes.
-
-Disadvantages:
-
- - There's probably some overhead for creating scopes. I don't know what this does to the quality of the compiled code.
- - The user has to do some work to get the resources cleaned up.
- - It's possible to leak resources that have already been cleaned up, for example you can get a closed file handle with something like
- `scope() do; @! open("/tmp/junk.txt") end`.
- - It's somewhat unique, and people may find it unfamiliar.
- - Right now it's just yet another way to solve the problem, and it's inconsistent and somewhat incompatible with all of the the others.
-
-## Usage
+## Basic Usage
 The most basic usage is to create a scope and execute code within it.  Within a scope you can schedule code for execution when the scope terminates.
 ```
-scope() do
+@scope begin
     @defer println("world")
     println("hello")
 end
@@ -66,7 +25,7 @@ type A
 end
 Base.close(a::A) = println("Closing $a")
 use(a::A) = println("Using $a")
-scope() do
+@scope begin
     a = @! A("a")
     use(a)
 end
@@ -76,6 +35,49 @@ prints
 Using A("a")
 Closing A("a")
 ```
+
+## Module Development
+Module authors should use `defer` to schedule cleanup of resources allocated in the `__init__()` function.  (A global 
+top-level scope is always exists.)  The user may execute all pending `defer`ed actions by calling `pop_scope!(1)`.  The 
+module can then be reinitialized by the user calling `__init__()`.
+
+Modules should *not* use `defer` (or `finalizer`) to schedule cleanup of resources allocated by the user.  Instead, add a 
+method to `Base.close`, so that your user may schedule cleanup of the resource easily by adding `@!` where your constructor
+is called.
+
+```
+module Example
+include("libfoo.jl")
+
+# Some global context that our library uses
+const foo_context = Ref{fooContext_t}(C_NULL)
+
+# Initialize the library when the module is (re-)loaded
+function __init__()
+  fooCreateContext(foo_context)
+  # don't use atexit, defer the action instead
+  @defer fooDestroyContext(foo_context[])
+end
+
+# An object in the library that will be made available to julia users
+immutable Foo
+  ptr::fooThing_t
+end
+
+# Create the object in the wrapper constructor
+function Foo(x...)
+  thing = Ref{fooThing_t}
+  fooCreateThing(foo_context[], thing, x...)
+  # don't schedule thing to be destroyed!
+  Foo(thing[])
+end
+
+# Extend the close function so the user can call @! Foo(...) to create an object and control when it will be destroyed.
+Base.close(foo::Foo) = fooDestroyThing(foo_context[], foo.ptr)
+end
+```
+
+## More Usage
 
 Sometimes `scope() do ... end` is inconvenient, so there's also a `@scope` macro.
 ```
