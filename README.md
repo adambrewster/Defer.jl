@@ -121,3 +121,36 @@ prints
 ```
 e = CompositeException(Any["Exception","Defered exception"])
 ```
+
+# Future Work
+This package is offered as an example of how defered resource clean-up may work in julia.
+Package authors may experiment to see if the feature is useful, and the maintainers of the
+language may follow its example and lessons learned in implementing a similar feature in julia.
+
+Additional work and questions to be resolved to adopt such a feature include the following:
+
+ - *Which function should be used to dispose of resources?*
+I chose to use `close` for this purpose because it already exists in Base and any other
+extension of the function is unlikely to conflict with this usage.  Extending `finalize`
+interferes with that function's usage to call any finalizers scheduled on the object.
+Other options (e.g. `dispose`, `destroy`, `cleanup`, etc) may be suitable but are commonly
+used in other packages so that their use in this package would conflict, but the community
+could adopt one such function, and export it from Base.
+
+ - *When should defered actions be executed?*
+This package requires the user to specify when defered actions are to be run by declaring scopes.
+A built-in language feature would likely adopt a rule such as at the end of the currently executing
+function or let-block.  In particular, defered actions should not be executed when lines from the
+REPL of IJulia cells terminate or when a module is initialized.
+
+ - *Should module initialization be a special case?*
+I have suggested the `__init__` function always be run a scope which will exist for life of the
+module.  Alternately, there could be a corresponding `__uninit__` function which could be used
+to similar effect.
+
+- *Should a package author schedule for destruction resources which will be returned to the user?*
+The current practice of scheduling resources for destruction in their constructor (e.g. by calling
+`finalizer` or similar) is convenient when called directly from the REPL as the user can usually
+not worry about resource clean-up.  For performance sensitive code, however, the option to handle resource
+cleanup manually may be necessary.  It would be useful for the community to adopt a single
+convention for package authors to follow in addressing these two competing desires.
