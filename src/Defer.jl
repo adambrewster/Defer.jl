@@ -1,5 +1,6 @@
 # Copyright 2017 Massachusetts Institute of Technology. See LICENSE file for details.
 
+__precompile__(true)
 module Defer
 
 export push_scope!, pop_scope!, scope, scope_nogc, @scope, defer, @defer, defer_call, @!
