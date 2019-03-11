@@ -6,20 +6,21 @@ module Defer
 export push_scope!, pop_scope!, scope, scope_nogc, @scope, defer, @defer, defer_call, @!
 
 const scopes = Any[Any[]]
+const ExceptionWrapper = Union{Some{Any}, Nothing}
 
 function push_scope!()
   push!(scopes, Any[])
   length(scopes)
 end
 
-function pop_scope!(i::Int, e::Nullable{Any}=Nullable{Any}())
+function pop_scope!(i::Int, e::ExceptionWrapper=nothing)
   if i == length(scopes)
     pop_scope!(e)
   else
     @assert i > 0
     warn("Popping scope $(length(scopes)), expected $i")
     if length(scopes) < i
-      if !isnull(e)
+      if notnothing(e)
         rethrow(get(e))
       end
     else
@@ -31,8 +32,8 @@ function pop_scope!(i::Int, e::Nullable{Any}=Nullable{Any}())
   end
 end
 
-function pop_scope!(e::Nullable{Any}=Nullable{Any}())
-  exceptions = isnull(e) ? Any[] : Any[get(e)]
+function pop_scope!(e::ExceptionWrapper=nothing)
+  exceptions = e==nothing ? Any[] : Any[get(e)]
   this_scope = pop!(scopes)
   if isempty(scopes)
     push!(scopes, Any[])
@@ -59,11 +60,11 @@ end
 
 function scope(f)
   sc = push_scope!()
-  ex = Nullable{Any}()
+  ex = nothing
   try
     f()
   catch e
-    ex = Nullable{Any}(e)
+    ex = Some(e)
   finally
     pop_scope!(sc, ex)
   end
@@ -72,11 +73,11 @@ end
 function scope_nogc(f)
   gc_enabled = gc_enable(false)
   sc = push_scope!()
-  ex = Nullable{Any}()
+  ex = nothing
   try
     f()
   catch e
-    ex = Nullable{Any}(e)
+    ex = Some(e)
   finally
     pop_scope!(sc, ex)
     if gc_enabled
@@ -87,11 +88,11 @@ end
 
 _scope(code::Expr) = quote
   sc = push_scope!()
-  ex = Nullable{Any}()
+  ex =nothing
   try
     $code
   catch e
-    ex = Nullable{Any}(e)
+    ex = Some(e)
   finally
     pop_scope!(sc, ex)
   end
