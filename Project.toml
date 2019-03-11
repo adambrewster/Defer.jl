@@ -1,0 +1,5 @@
+name = "Defer"
+version = "0.0.2"
+uuid = "3f285a2b-d7e6-5525-df68-d1e503a49123"
+[compat]
+julia = "^1"
