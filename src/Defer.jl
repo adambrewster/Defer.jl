@@ -2,6 +2,7 @@
 
 __precompile__(true)
 module Defer
+import Base.GC
 
 export push_scope!, pop_scope!, scope, scope_nogc, @scope, defer, @defer, defer_call, @!
 
@@ -20,8 +21,8 @@ function pop_scope!(i::Int, e::ExceptionWrapper=nothing)
     @assert i > 0
     warn("Popping scope $(length(scopes)), expected $i")
     if length(scopes) < i
-      if notnothing(e)
-        rethrow(get(e))
+      if e != nothing
+        throw(something(e))
       end
     else
       while length(scopes) > i
@@ -33,7 +34,7 @@ function pop_scope!(i::Int, e::ExceptionWrapper=nothing)
 end
 
 function pop_scope!(e::ExceptionWrapper=nothing)
-  exceptions = e==nothing ? Any[] : Any[get(e)]
+  exceptions = e==nothing ? Any[] : Any[something(e)]
   this_scope = pop!(scopes)
   if isempty(scopes)
     push!(scopes, Any[])
@@ -48,7 +49,7 @@ function pop_scope!(e::ExceptionWrapper=nothing)
   empty!(this_scope)
   if !isempty(exceptions)
     if length(exceptions) == 1
-      rethrow(exceptions[1])
+      throw(exceptions[1])
     else
       e = CompositeException()
       append!(e.exceptions, exceptions)
@@ -60,54 +61,57 @@ end
 
 function scope(f)
   sc = push_scope!()
-  ex = nothing
+  ex = Ref{Union{Some{Any},Nothing}}(nothing)
   try
     f()
   catch e
-    ex = Some(e)
+    ex[] = Some(e)
   finally
-    pop_scope!(sc, ex)
+    pop_scope!(sc, Some(e))
   end
 end
 
 function scope_nogc(f)
-  gc_enabled = gc_enable(false)
+  gc_enabled = GC.enable(false)
   sc = push_scope!()
-  ex = nothing
+  ex = Ref{Union{Some{Any},Nothing}}(nothing)
   try
     f()
   catch e
-    ex = Some(e)
+    ex[] = Some(e)
   finally
-    pop_scope!(sc, ex)
+    pop_scope!(sc, ex[])
     if gc_enabled
-      gc_enable(true)
+      GC.enable(true)
     end
   end
 end
 
 _scope(code::Expr) = quote
   sc = push_scope!()
-  ex =nothing
+  ex = Ref{Union{Some{Any},Nothing}}(nothing)
   try
     $code
   catch e
-    ex = Some(e)
+    ex[] = Some(e)
   finally
-    pop_scope!(sc, ex)
+    pop_scope!(sc, ex[])
   end
 end
 
 macro scope(code)
   if !isa(code, Expr) return esc(code) end
   if code.head == :let
-    newcode = Expr(:let, esc(code.args[1]))
-    append!(newcode.args, map(code.args[2:end]) do a
-      @assert a.head == :(=)
-      var = esc(a.args[1])
-      val = esc(a.args[2])
-      :($var = defer_call($val))
-    end)
+    flet(x::Expr) = :($(esc(x.args[1])) = defer_call($(esc(x.args[2]))))
+    newcode = Expr(:let, code.args[1], esc(code.args[2]))
+    if code.args[1].head == :(=)
+      newcode.args[1] = flet(code.args[1])
+    else
+      for i in 1:length(code.args[1].args)
+        @assert code.args[1].args[i].head == :(=)
+        newcode.args[1].args[i] = flet(code.args[1].args[i])
+      end
+    end
     return _scope(newcode)
   elseif code.head == :(=)
     return Expr(:(=), esc(code.args[1]), _scope(esc(code.args[2])))

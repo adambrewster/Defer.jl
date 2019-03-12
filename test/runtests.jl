@@ -1,10 +1,10 @@
-using Base.Test, Defer
+using Test, Defer
 
-type E end
-type F end
+mutable struct E end
+mutable struct F end
 
 const closables = Set{Any}()
-type Closable
+mutable struct Closable
   closed::Bool
   name::String
   Closable(name::String) = let a = new(false, name); push!(closables, a); a; end
@@ -12,7 +12,7 @@ end
 
 Base.close(c::Closable) = (c.closed = true; nothing)
 
-type Unclosable
+mutable struct Unclosable
   closed::Bool
   name::String
   Unclosable(name::String) = let a = new(false, name); push!(closables, a); a; end
@@ -23,7 +23,7 @@ Base.close(c::Unclosable) = (c.closed = true; throw(E()))
 function verify_closed()
   setdiff!(closables, filter(x->x.closed, closables))
   if !isempty(closables)
-    error(string("Unclosed objects: ", join(map(x->x.name, closables), ", ")))
+    error(string("Unclosed objects: ", join(map(x->x.name, collect(closables)), ", ")))
   end
 end
 
@@ -85,6 +85,11 @@ verify_closed()
 
 @scope let a = Closable("11")
   @! Closable("12")
+end
+verify_closed()
+
+@scope let a = Closable("11a"),  b = Closable("11b")
+  @! Closable("12a")
 end
 verify_closed()
 
