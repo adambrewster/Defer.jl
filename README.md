@@ -91,7 +91,7 @@ is equivalent to the above.
 
 When applied to a method definition, `@scope` wraps the body in a scope.
 ```julia
-@scope g() use(@! A("a"))
+@scope g() = use(@! A("a"))
 g()
 ```
 is also equivalent.
