@@ -4,6 +4,10 @@ wrapping external libraries), they must often arrange for those resources to be 
 disposed of after use.  This package provides a golang inspired `@defer` macro to make it easier for users to free resources
 at the correct time.
 
+This package is meant as a pathfinder for an eventual language feature that will take its place.  In the meantime, it's usable
+in its current form.  By adopting this convention now you will be ready for the future and also help shape the language by
+determining which forms are most useful and which corner cases cause friction.
+
 ## Basic Usage
 The most basic usage is to create a scope and execute code within it.  Within a scope you can schedule code for execution when the scope terminates.
 ```
@@ -91,7 +95,7 @@ is equivalent to the above.
 
 When applied to a method definition, `@scope` wraps the body in a scope.
 ```julia
-@scope g() use(@! A("a"))
+@scope g() = use(@! A("a"))
 g()
 ```
 is also equivalent.
@@ -109,7 +113,7 @@ Exceptions from the scope or its deferred actions propagate to the caller.  If t
 ```
 try
     scope() do
-        @defer throw("Defered exception")
+        @defer throw("Deferred exception")
         throw("Exception")
     end
 catch e
@@ -119,11 +123,11 @@ end
 ```
 prints
 ```
-e = CompositeException(Any["Exception","Defered exception"])
+e = CompositeException(Any["Exception","Deferred exception"])
 ```
 
 # Future Work
-This package is offered as an example of how defered resource clean-up may work in julia.
+This package is offered as an example of how deferred resource clean-up may work in julia.
 Package authors may experiment to see if the feature is useful, and the maintainers of the
 language may follow its example and lessons learned in implementing a similar feature in julia.
 
@@ -137,10 +141,10 @@ Other options (e.g. `dispose`, `destroy`, `cleanup`, etc) may be suitable but ar
 used in other packages so that their use in this package would conflict, but the community
 could adopt one such function, and export it from Base.
 
- - *When should defered actions be executed?*
-This package requires the user to specify when defered actions are to be run by declaring scopes.
+ - *When should deferred actions be executed?*
+This package requires the user to specify when deferred actions are to be run by declaring scopes.
 A built-in language feature would likely adopt a rule such as at the end of the currently executing
-function or let-block.  In particular, defered actions should not be executed when lines from the
+function or let-block.  In particular, deferred actions should not be executed when lines from the
 REPL of IJulia cells terminate or when a module is initialized.
 
  - *Should module initialization be a special case?*
