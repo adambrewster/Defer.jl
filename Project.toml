@@ -1,6 +1,6 @@
 name = "Defer"
 uuid = "3f285a2b-d7e6-5525-df68-d1e503a49123"
-version = "0.0.2"
+version = "0.1.0"
 
 [deps]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
