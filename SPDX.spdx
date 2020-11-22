@@ -1,0 +1,5 @@
+SPDXVersion: SPDX-2.1
+PackageName: Defer.jl
+PackageOriginator: MIT Lincoln Laboratory
+PackageHomePage: https://github.com/adambrewster/Defer.jl/
+PackageLicenseDeclared: MIT
